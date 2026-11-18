@@ -18,6 +18,15 @@ npx expo start
 Skann QR-koden med **Expo Go**-appen på telefonen (iPhone eller Android), så åpnes appen.
 Du kan også kjøre `npx expo start --web` for å teste i nettleseren.
 
+## Skann skjermen (AI)
+
+I lagbyggeren kan du ta bilde av scoreboardet på TV-en (hold inne touchpaden på PlayStation). Claude Opus 5.5 kjenner igjen fiendens helter og fyller inn laget.
+
+- Krever en egen API-nøkkel fra Anthropic (console.anthropic.com → API Keys). Lim den inn i appen første gang.
+- Nøkkelen lagres bare på telefonen (localStorage) og sendes kun til api.anthropic.com. Den ligger aldri i koden eller på GitHub.
+- Hvert bilde koster omtrent 20–50 øre fra Anthropic-kontoen din. Sett gjerne en månedlig grense i Console.
+- Koden ligger i `src/data/scan.ts` (AI-kallet) og `src/components/ScanCard.tsx` (kamera og oppsett).
+
 ## Installer på iPhone (gratis)
 
 Appen kan installeres som en web-app med eget ikon på Hjem-skjermen. Den åpnes i fullskjerm uten Safari-menyer.
