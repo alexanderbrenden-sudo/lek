@@ -1,6 +1,7 @@
 import { Pressable, SectionList, StyleSheet, Text } from 'react-native';
 import { MAPS, MODES } from '../data/maps';
 import { colors } from '../theme';
+import { MapCover } from '../components/Art';
 
 const SECTIONS = MODES.map((mode) => ({
   title: mode,
@@ -18,10 +19,9 @@ export function MapListScreen({ onOpen }: { onOpen: (mapId: string) => void }) {
       renderItem={({ item }) => (
         <Pressable
           onPress={() => onOpen(item.id)}
-          style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.cardPressed }]}
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
         >
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.chevron}>›</Text>
+          <MapCover map={item} height={104} />
         </Pressable>
       )}
     />
@@ -39,15 +39,5 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 8,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    marginBottom: 8,
-  },
-  name: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  chevron: { color: colors.muted, fontSize: 24 },
+  card: { marginBottom: 10 },
 });

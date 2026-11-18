@@ -4,6 +4,7 @@ import { MAPS } from '../data/maps';
 import { HeroChip } from '../components/HeroChip';
 import { ChipRow, Section } from '../components/Section';
 import { colors } from '../theme';
+import { MapCover } from '../components/Art';
 
 const ROLES: Role[] = ['tank', 'damage', 'support'];
 
@@ -13,8 +14,7 @@ export function MapDetailScreen({ mapId, onOpenHero }: { mapId: string; onOpenHe
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.mode}>{map.mode}</Text>
-      <Text style={styles.name}>{map.name}</Text>
+      <MapCover map={map} height={190} />
       <View style={styles.noteBox}>
         <Text style={styles.note}>{map.note}</Text>
       </View>
@@ -40,9 +40,7 @@ export function MapDetailScreen({ mapId, onOpenHero }: { mapId: string; onOpenHe
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
-  mode: { color: colors.accent, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' },
-  name: { color: colors.text, fontSize: 28, fontWeight: '800', marginTop: 2, marginBottom: 14 },
-  noteBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginBottom: 22 },
+  noteBox: { backgroundColor: colors.card, borderRadius: 12, padding: 14, marginTop: 14, marginBottom: 22 },
   note: { color: colors.text, fontSize: 15, lineHeight: 21 },
   ranked: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   rank: { color: colors.muted, fontWeight: '800', width: 12 },
