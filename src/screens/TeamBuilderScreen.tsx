@@ -5,6 +5,7 @@ import { MAPS } from '../data/maps';
 import { recommend } from '../data/team';
 import { HeroAvatar } from '../components/HeroChip';
 import { Section } from '../components/Section';
+import { ScanCard } from '../components/ScanCard';
 import { colors } from '../theme';
 
 export const MAX_ENEMIES = 5;
@@ -47,6 +48,8 @@ export function TeamBuilderScreen({ team, setTeam, onOpenHero }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.intro}>Velg heltene på fiendens lag, så foreslår appen hvem du bør spille.</Text>
+
+      <ScanCard onEnemies={(ids) => setTeam((t) => ({ ...t, enemies: ids.slice(0, MAX_ENEMIES) }))} />
 
       {/* ---------- Fiendens lag ---------- */}
       <View style={styles.sectionHead}>
