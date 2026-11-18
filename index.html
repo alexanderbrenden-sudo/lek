@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overwatch-counters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout: HUD-aktig toppfelt, heltgitter gruppert etter rolle, detaljpanel til høyre på brede skjermer og som ark nedenfra på mobil */
+  --bg: #0d1016;
+  --panel: #151a23;
+  --panel-2: #1c2330;
+  --line: #2a3242;
+  --ink: #eef1f6;
+  --muted: #8f99ab;
+  --accent: #ffb547;
+  --tank: #6cb2ff;
+  --damage: #ff7070;
+  --support: #5fd6a0;
+  --font-display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --step-0: 0.95rem;
+  --step-1: 1.15rem;
+  --step-2: 1.6rem;
+  --step-3: 2.6rem;
+  --step-4: clamp(2.8rem, 9vw, 4.4rem);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.45;
+  min-height: 100%;
+}
+body.locked { overflow: hidden; }
+button { font: inherit; color: inherit; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 16px 48px; }
+
+/* Toppfelt */
+.top {
+  display: grid;
+  gap: 10px;
+  padding: 28px 0 18px;
+  border-bottom: 1px solid var(--line);
+  background:
+    repeating-linear-gradient(-60deg, transparent 0 22px, rgba(255,181,71,0.035) 22px 23px);
+}
+.eyebrow {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--step-4);
+  line-height: 0.92;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+h1 .slash { color: var(--accent); }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+
+/* Faner */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 14px;
+}
+.tab {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 10px 18px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--step-1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  padding-inline: 22px;
+}
+.tab[aria-selected="true"] { background: var(--accent); color: #1b1305; border-color: var(--accent); }
+
+/* Verktøylinje */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+.search {
+  flex: 1 1 220px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 11px 14px;
+  font: inherit;
+  border-radius: 2px;
+}
+.search::placeholder { color: var(--muted); }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 2px;
+}
+.filter[aria-pressed="true"] { background: var(--panel-2); border-color: var(--ink); }
+
+/* Rollemerker */
+.role-icon { width: 14px; height: 14px; flex: 0 0 auto; }
+.r-tank { color: var(--tank); }
+.r-damage { color: var(--damage); }
+.r-support { color: var(--support); }
+
+/* Oppsett */
+.layout { display: grid; gap: 24px; }
+@media (min-width: 920px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 400px; align-items: start; }
+}
+
+/* Heltgitter */
+.group { display: grid; gap: 10px; margin-bottom: 22px; }
+.group-head {
+  display: flex; align-items: baseline; gap: 10px;
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.1em; font-size: var(--step-1);
+  border-bottom: 1px solid var(--line); padding-bottom: 6px;
+}
+.group-head .count { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.hero {
+  position: relative;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 10px 12px 10px 18px;
+  cursor: pointer;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 62px;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.hero::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  background: var(--rc);
+}
+.hero:hover { background: var(--panel-2); }
+.hero .name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.35rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.hero .sub { color: var(--muted); font-size: 0.82rem; }
+.hero .tag {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent);
+}
+.hero[aria-pressed="true"] {
+  border-color: var(--rc);
+  background: color-mix(in srgb, var(--rc) 16%, var(--panel));
+}
+.hero.enemy[aria-pressed="true"]::after {
+  content: "Fiende";
+  position: absolute; top: 8px; right: 8px;
+  font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--rc);
+}
+.empty { color: var(--muted); padding: 16px 0; }
+
+/* Detaljpanel */
+.detail {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+@media (min-width: 920px) {
+  .detail { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .detail .close { display: none; }
+  .scrim { display: none !important; }
+}
+@media (max-width: 919px) {
+  .detail {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    max-height: 86%;
+    overflow-y: auto;
+    z-index: 20;
+    border-width: 1px 0 0;
+    transform: translateY(105%);
+    transition: transform 0.25s ease;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -12px 40px rgba(0,0,0,0.5);
+  }
+  .detail.open { transform: none; }
+  .scrim {
+    position: fixed; inset: 0; background: rgba(5,7,10,0.6); z-index: 15;
+  }
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+@media (min-width: 920px) {
+  .panel { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+}
+@media (max-width: 919px) {
+  .panel { order: -1; }
+}
+.panel > .section-title:first-child { margin-top: 0; }
+.detail-head { display: grid; gap: 8px; margin-bottom: 18px; }
+.close {
+  justify-self: end;
+  border: 1px solid var(--line); background: var(--panel-2);
+  padding: 6px 12px; cursor: pointer; font-weight: 600;
+}
+.big-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: var(--step-3);
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--rc);
+  text-wrap: balance;
+}
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); padding: 3px 9px; font-size: 0.82rem; font-weight: 600;
+}
+.pill.flag { border-color: var(--accent); color: var(--accent); }
+.section-title {
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.1em; font-size: var(--step-1); margin: 20px 0 8px;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.section-title .count { color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border-left: 3px solid var(--rc);
+}
+.row .who {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 8px;
+}
+.link {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 800; font-size: 1.25rem;
+  text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink);
+  text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px;
+}
+.link:hover { text-decoration-color: var(--rc); }
+.row .why { grid-column: 1 / -1; color: #c9d0dc; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mini {
+  border: 1px solid var(--line); background: var(--panel-2);
+  padding: 5px 10px; cursor: pointer; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.hint { color: var(--muted); font-size: 0.88rem; margin: 6px 0 0; }
+
+/* Fiendelaget */
+.enemy-bar {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  background: var(--panel); border: 1px solid var(--line); padding: 12px; margin-bottom: 14px;
+}
+.slot {
+  min-width: 96px; padding: 8px 10px; border: 1px dashed var(--line);
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase; font-size: 1.1rem;
+  color: var(--muted); text-align: center;
+}
+.slot.filled { border-style: solid; border-color: var(--rc); color: var(--ink); cursor: pointer; background: var(--panel-2); }
+.enemy-bar .status { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; gap: 10px; align-items: center; }
+.btn {
+  border: 1px solid var(--line); background: var(--panel-2); padding: 8px 14px; cursor: pointer; font-weight: 600;
+}
+.example { color: var(--accent); font-weight: 700; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.pick {
+  display: grid; gap: 6px;
+  padding: 12px; background: var(--panel-2); border-left: 3px solid var(--rc);
+}
+.pick-top { display: flex; align-items: center; gap: 10px; }
+.score {
+  margin-left: auto;
+  font-family: var(--font-display); font-weight: 900; font-size: 1.6rem; line-height: 1;
+  font-variant-numeric: tabular-nums; color: var(--accent);
+}
+.score small { font-size: 0.9rem; color: var(--muted); font-weight: 800; }
+.pick p { margin: 0; color: #c9d0dc; }
+.pick .warn { color: var(--damage); }
+.meter { display: flex; gap: 3px; }
+.meter i { display: block; width: 18px; height: 5px; background: var(--line); }
+.meter i.on { background: var(--accent); }
+
+footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; max-width: 72ch; }
+footer p { margin: 0 0 8px; }
+
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Overwatch · Season 5 · 54 helter</div>
+    <h1>Hvem counterer <span class="slash">hvem?</span></h1>
+    <p class="lede">Velg en helt for å se hvem som slår den og hvorfor. Eller sett opp fiendelaget og få forslag til hva du bør bytte til.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Visning">
+    <button class="tab" role="tab" id="tab-helter" aria-selected="true" aria-controls="view-helter">Helter</button>
+    <button class="tab" role="tab" id="tab-fiendelag" aria-selected="false" aria-controls="view-fiendelag">Fiendelaget</button>
+  </nav>
+
+  <!-- Visning: helter -->
+  <section id="view-helter" role="tabpanel" aria-labelledby="tab-helter">
+    <div class="toolbar">
+      <input class="search" id="search" type="search" placeholder="Søk etter helt" autocomplete="off" aria-label="Søk etter helt">
+      <div class="filters" id="role-filters" role="group" aria-label="Filtrer på rolle"></div>
+    </div>
+    <div class="layout">
+      <div id="hero-groups"></div>
+      <aside class="detail" id="detail" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <!-- Visning: fiendelaget -->
+  <section id="view-fiendelag" role="tabpanel" aria-labelledby="tab-fiendelag" hidden>
+    <div class="enemy-bar" id="enemy-bar"></div>
+    <div class="layout">
+      <div>
+        <div class="toolbar">
+          <input class="search" id="search-enemy" type="search" placeholder="Søk etter fiende" autocomplete="off" aria-label="Søk etter fiende">
+        </div>
+        <div id="enemy-groups"></div>
+      </div>
+      <aside class="panel" id="picks" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <footer>
+    <p>Listene bygger på heltenes evner og på matchup-data fra <a href="https://www.counterwatch.gg/stats/overwatch/counters">Counterwatch</a> (november 2026), <a href="https://dotesports.com/overwatch/news/the-best-counters-for-each-overwatch-hero">Dot Esports</a> og <a href="https://esports.gg/guides/overwatch/overwatch-2-hero-counters">esports.gg</a>. Rollene følger Season 5, der Sombra er support.</p>
+    <p>Counters er tommelfingerregler. En god spiller på «feil» helt slår ofte en svak spiller på riktig helt, og balansen endres med hver patch.</p>
+  </footer>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+
+<script>
+const ROLE_NAME = { tank: "Tank", damage: "Damage", support: "Support" };
+const ROLE_ICON = {
+  tank: '<svg class="role-icon r-tank" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1 14 3.5v4.2C14 11.3 11.4 14 8 15 4.6 14 2 11.3 2 7.7V3.5Z"/></svg>',
+  damage: '<svg class="role-icon r-damage" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1 15 8 8 15 1 8Z"/></svg>',
+  support: '<svg class="role-icon r-support" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 1h4v5h5v4h-5v5H6v-5H1V6h5Z"/></svg>'
+};
+const ROLE_COLOR = { tank: "var(--tank)", damage: "var(--damage)", support: "var(--support)" };
+
+// id, navn, rolle, underrolle, merke, counters: [id, begrunnelse]
+const HEROES = [
+  // TANK
+  { id: "dva", n: "D.Va", r: "tank", s: "Initiator", c: [
+    ["zarya", "Strålen hennes kan ikke spises av Defense Matrix, og D.Va lader opp bobla hennes."],
+    ["symmetra", "Strålen går rett gjennom Defense Matrix og smelter mechen."],
+    ["mei", "Strålen går gjennom Matrix, og veggen skiller D.Va fra laget."],
+    ["moira", "Strålen kan ikke blokkeres av Matrix og trenger ikke sikte."],
+    ["brig", "Nærkamp og Shield Bash kan ikke spises av Matrix."]
+  ]},
+  { id: "domina", n: "Domina", r: "tank", s: "Stalwart", tag: "Ny 2026", c: [
+    ["symmetra", "Strålen lades fort opp på barrieren og selve Domina, og hun har ingen bevegelsesevne for å komme seg unna."],
+    ["reaper", "Tung skade på kort hold mot en stor tank som ikke kan rømme."],
+    ["ramattra", "Pummel går gjennom Barrier Array, og han vinner nærkampen."],
+    ["ana", "Biotic Grenade stopper healingen på en tank uten egen bevegelsesevne."],
+    ["vendetta", "Kommer tett på, og ulten skjærer gjennom barrierer."],
+    ["rein", "Skjoldet tar strålen hennes, og hammeren vinner nærkampen mot en tank uten bevegelsesevne."]
+  ]},
+  { id: "doomfist", n: "Doomfist", r: "tank", s: "Initiator", c: [
+    ["mauga", "Mye helse og høy skade gjør at Doomfist sliter med å drepe ham og komme seg ut igjen."],
+    ["pharah", "Holder seg i lufta der Doomfist ikke når henne."],
+    ["ana", "Sleep Dart avbryter ham midt i angrepet."],
+    ["cassidy", "Tung hitscan og Magnetic Grenade straffer ham når han dykker inn."],
+    ["mei", "Saktner ham ned og kan stenge ham ute med veggen."],
+    ["jq", "Commanding Shout og sårene gjør at hun vinner nærkampen når han går inn."]
+  ]},
+  { id: "hazard", n: "Hazard", r: "tank", s: "Initiator", c: [
+    ["mauga", "Vinner nærkampen på rå skade og egen healing."],
+    ["dva", "Defense Matrix spiser piggene fra både våpenet og Spike Guard."],
+    ["ana", "Antiheal gjør at han ikke klarer å holde seg i live inne hos dere."],
+    ["orisa", "Fortify gjør henne immun mot knuffen fra Jagged Wall, og hun vinner den lange fighten."]
+  ]},
+  { id: "jq", n: "Junker Queen", r: "tank", s: "Stalwart", c: [
+    ["ana", "Antiheal stopper healingen hun får fra sårene."],
+    ["kiriko", "Protection Suzu fjerner sårene og antiheal fra Rampage."],
+    ["orisa", "Tåler mye, holder henne på avstand og knuffer henne ut med Javelin."],
+    ["mei", "Saktner henne ned og deler laget hennes med veggen."],
+    ["pharah", "Holder seg i lufta utenfor rekkevidden til øksa og kniven."]
+  ]},
+  { id: "mauga", n: "Mauga", r: "tank", s: "Bruiser", c: [
+    ["dva", "Defense Matrix spiser kulene hans, så han får ikke tent på noen."],
+    ["sigma", "Kinetic Grasp absorberer skuddene og gjør dem om til skjold."],
+    ["ana", "Antiheal stopper Cardiac Overdrive og healingen hans."],
+    ["kiriko", "Suzu gjør laget usårbart et øyeblikk og fjerner brannen."],
+    ["symmetra", "Strålen lades opp på en stor tank som ikke kan slippe unna."]
+  ]},
+  { id: "orisa", n: "Orisa", r: "tank", s: "Bruiser", c: [
+    ["zen", "Orb of Discord gjør den store kroppen hennes til et lett mål for hele laget."],
+    ["symmetra", "Javelin Spin stopper prosjektiler, men ikke strålen hennes."],
+    ["pharah", "Angriper fra lufta der Orisa sliter med å treffe."],
+    ["ana", "Antiheal og Sleep Dart straffer henne når Fortify er brukt opp."],
+    ["tracer", "Rask og vanskelig å treffe, og presser baklinjen mens Orisa står foran."]
+  ]},
+  { id: "ramattra", n: "Ramattra", r: "tank", s: "Stalwart", c: [
+    ["zen", "Orb of Discord på Nemesis-formen gjør ham til et lett mål."],
+    ["ana", "Antiheal og Sleep Dart mens han er i Nemesis-form."],
+    ["orisa", "Javelin og Fortify holder ham unna og tåler Annihilation."],
+    ["reaper", "Mye skade på kort hold mot den store Nemesis-kroppen."],
+    ["pharah", "Holder avstand i lufta, utenfor rekkevidden til Pummel."]
+  ]},
+  { id: "rein", n: "Reinhardt", r: "tank", s: "Stalwart", c: [
+    ["pharah", "Bomber over skjoldet fra lufta, der hammeren ikke når."],
+    ["junkrat", "Granatene spretter over og rundt skjoldet."],
+    ["ramattra", "Pummel går rett gjennom skjoldet."],
+    ["mei", "Saktner ham og stenger ham ute fra laget med veggen."],
+    ["ana", "Sleep Dart stopper Charge og ulten, og antiheal straffer ham i nærkamp."]
+  ]},
+  { id: "hog", n: "Roadhog", r: "tank", s: "Bruiser", tag: "Rework S5", c: [
+    ["ana", "Antiheal gjør Take a Breather nesten ubrukelig."],
+    ["zen", "Orb of Discord på en så stor kropp lar laget smelte ham."],
+    ["orisa", "Fortify gjør henne immun mot hooket, og Javelin holder ham unna."],
+    ["sojourn", "Ladet Railgun gjør enorm skade på et så stort mål."],
+    ["doctrine", "Deliverance senker makshelsen hans, og Eternal Scepter straffer en så stor tank."]
+  ]},
+  { id: "sigma", n: "Sigma", r: "tank", s: "Stalwart", c: [
+    ["ramattra", "Pummel går gjennom barrieren hans."],
+    ["winston", "Hopper over barrieren, og Tesla-kanonen treffer bak den."],
+    ["tracer", "Går rundt barrieren og plager baklinjen han skal beskytte."],
+    ["genji", "Mobil nok til å komme forbi barrieren og vanskelig å treffe."],
+    ["symmetra", "Strålen lades opp på barrieren hans."]
+  ]},
+  { id: "winston", n: "Winston", r: "tank", s: "Initiator", c: [
+    ["reaper", "Hagla gjør enorm skade på den store kroppen hans på kort hold, akkurat der Winston vil være."],
+    ["bastion", "Assault-formen river både ham og bobla i stykker."],
+    ["hog", "Hooket drar ham ut av bobla og bort fra laget."],
+    ["domina", "Sonic Repulsors knuffer ham bort, og strålen gjør jevn skade."],
+    ["cassidy", "Tung hitscan og Magnetic Grenade straffer ham når han lander."]
+  ]},
+  { id: "ball", n: "Wrecking Ball", r: "tank", s: "Initiator", c: [
+    ["mauga", "Smelter overhelsen hans fort og vinner duellen."],
+    ["hog", "Hooket stopper rullingen og drar ham inn."],
+    ["domina", "Sonic Repulsors og jevn skade gjør det vanskelig for ham å rulle inn."],
+    ["cassidy", "Tung hitscan og Magnetic Grenade straffer ham når han kommer inn."],
+    ["brig", "Whip Shot slår ham bort fra baklinjen."]
+  ]},
+  { id: "zarya", n: "Zarya", r: "tank", s: "Bruiser", c: [
+    ["pharah", "Holder seg utenfor rekkevidden til strålen hennes."],
+    ["echo", "Flyr utenfor rekkevidde og gjør mye skade når boblene er brukt."],
+    ["junkrat", "Venter ut bobla og straffer henne med granater når den er brukt."],
+    ["bastion", "Rå skade som knekker henne før neste boble kommer."],
+    ["ashe", "Treffer fra lang avstand, langt utenfor strålen."]
+  ]},
+  { id: "dmon", n: "D.Mon", r: "tank", s: "Stalwart", tag: "Ny 2026", c: [
+    ["mauga", "Mye helse og høy skade gjør at han vinner nærkampen mot sverdet hennes."],
+    ["ramattra", "Er sterk på samme korte avstand og vinner ofte nærkampen."],
+    ["pharah", "Sverdet når ikke opp i lufta."],
+    ["echo", "Flyr utenfor rekkevidde og straffer henne etter at hun ejecter."],
+    ["bastion", "Assault-formen knuser både barrieren og mechen."],
+    ["jetpack", "Flyr over sverdet og kan løfte laget bort når D.Mon går inn."]
+  ]},
+
+  // DAMAGE
+  { id: "anran", n: "Anran", r: "damage", s: "Flanker", tag: "Ny 2026", c: [
+    ["winston", "Tesla-kanonen treffer henne uansett hvor mye hun danser rundt."],
+    ["moira", "Strålen trenger ikke sikte, og hun tåler brannen godt."],
+    ["kiriko", "Protection Suzu fjerner brannen fra laget."],
+    ["pharah", "Holder avstand i lufta der viftene ikke når."],
+    ["cassidy", "Magnetic Grenade og tung skade straffer henne når hun går inn."]
+  ]},
+  { id: "ashe", n: "Ashe", r: "damage", s: "Sharpshooter", c: [
+    ["winston", "Hopper rett på henne, og Tesla-kanonen trenger ikke sikte."],
+    ["genji", "Deflect sender skuddene tilbake, og han dykker henne lett."],
+    ["tracer", "For rask til at hun klarer å treffe på nært hold."],
+    ["widow", "Vinner duellen på lang avstand med ett hodeskudd."],
+    ["doomfist", "Kommer seg raskt inn og slår henne ut av posisjon."]
+  ]},
+  { id: "bastion", n: "Bastion", r: "damage", s: "Specialist", c: [
+    ["dva", "Defense Matrix spiser kulene i Assault-form."],
+    ["sigma", "Kinetic Grasp absorberer skuddene og gjør dem om til skjold."],
+    ["genji", "Deflect sender skuddene tilbake på Bastion."],
+    ["junkrat", "Spammer fra rundt hjørner der Bastion ikke kan svare."],
+    ["ana", "Sleep Dart stopper Bastion midt i Assault-formen."]
+  ]},
+  { id: "cassidy", n: "Cassidy", r: "damage", s: "Sharpshooter", c: [
+    ["widow", "Utklasser ham på lang avstand."],
+    ["ashe", "Har bedre rekkevidde og treffer ham før han kommer nær."],
+    ["hanzo", "Ett hodeskudd fra lang avstand, utenfor hans beste rekkevidde."],
+    ["dva", "Defense Matrix spiser skuddene og Magnetic Grenade."],
+    ["sigma", "Kinetic Grasp tar skuddene, og barrieren stenger siktlinjene."]
+  ]},
+  { id: "echo", n: "Echo", r: "damage", s: "Recon", c: [
+    ["cassidy", "Tung hitscan som treffer henne godt i lufta."],
+    ["soldier", "Jevn hitscan som følger henne når hun flyr."],
+    ["ashe", "Høy skade per skudd mot et mål i lufta."],
+    ["widow", "Et flygende mål er lett å treffe på lang avstand."],
+    ["dva", "Booster opp til henne, og Matrix spiser Sticky Bombs."]
+  ]},
+  { id: "emre", n: "Emre", r: "damage", s: "Specialist", tag: "Ny 2026", c: [
+    ["widow", "Vinner på lang avstand før han kommer innenfor burst-rekkevidden."],
+    ["zarya", "Bobla tar burst-skuddene, og strålen slår ham på nært hold."],
+    ["dva", "Defense Matrix spiser skuddene, granatene og ulten."],
+    ["anran", "Kommer seg tett på og vinner duellen på kort hold."],
+    ["soldier", "Jevn hitscan som treffer ham også når han flyr med ulten."],
+    ["lw", "Life Grip redder lagkamerater ut av burst-skaden hans."]
+  ]},
+  { id: "freja", n: "Freja", r: "damage", s: "Recon", c: [
+    ["dva", "Defense Matrix spiser boltene og Take Aim."],
+    ["cassidy", "Hitscan som treffer henne selv når hun hopper med Updraft."],
+    ["soldier", "Jevn hitscan som straffer henne i lufta."],
+    ["widow", "Vinner på lang avstand og straffer henne når hun hopper opp."]
+  ]},
+  { id: "genji", n: "Genji", r: "damage", s: "Flanker", c: [
+    ["winston", "Tesla-kanonen kan ikke deflectes og trenger ikke sikte."],
+    ["zarya", "Strålen går forbi Deflect, og bobla stopper Dragonblade."],
+    ["symmetra", "Strålen kan ikke deflectes, og tårnene saktner ham."],
+    ["moira", "Strålen kan ikke deflectes og trenger ikke sikte."],
+    ["brig", "Whip Shot og skjoldet stopper dykkene hans mot baklinjen."]
+  ]},
+  { id: "hanzo", n: "Hanzo", r: "damage", s: "Sharpshooter", c: [
+    ["winston", "Dykker ham, og Tesla-kanonen trenger ikke sikte."],
+    ["dva", "Defense Matrix spiser pilene."],
+    ["genji", "Deflect sender pilene tilbake."],
+    ["tracer", "Altfor rask for treg pilskyting på nært hold."],
+    ["widow", "Har lengre rekkevidde og raskere skudd på avstand."]
+  ]},
+  { id: "junkrat", n: "Junkrat", r: "damage", s: "Specialist", c: [
+    ["pharah", "Granatene treffer dårlig opp i lufta."],
+    ["echo", "Flyr over granatspammen og straffer ham ovenfra."],
+    ["dva", "Defense Matrix spiser granatene."],
+    ["widow", "Skyter ham fra lang avstand, utenfor rekkevidden hans."],
+    ["soldier", "Hitscan på mellomlang avstand, der granatene er vanskelige å treffe med."]
+  ]},
+  { id: "mei", n: "Mei", r: "damage", s: "Specialist", c: [
+    ["pharah", "Holder seg i lufta der Mei ikke når."],
+    ["echo", "Flyr utenfor rekkevidde og straffer henne ovenfra."],
+    ["widow", "Skyter henne på lang avstand, langt utenfor strålen."],
+    ["ashe", "Mye bedre rekkevidde, og Coach Gun skyver henne bort."],
+    ["kiriko", "Suzu fjerner saktning og frysing fra laget."]
+  ]},
+  { id: "pharah", n: "Pharah", r: "damage", s: "Recon", c: [
+    ["soldier", "Hitscan som treffer henne godt i lufta, og Helix-rakettene gir ekstra skade."],
+    ["cassidy", "Høy skade per skudd som treffer henne på avstand."],
+    ["widow", "Ett hodeskudd, og Pharah er et lett mål på himmelen."],
+    ["emre", "Burst-geværet og den flyvende ulten straffer henne hardt i lufta."],
+    ["dva", "Booster opp til henne og spiser rakettene med Defense Matrix."],
+    ["juno", "Pulsar Torpedoes låser seg på henne i lufta, og Juno kan sveve etter henne."]
+  ]},
+  { id: "reaper", n: "Reaper", r: "damage", s: "Flanker", c: [
+    ["pharah", "Hagla gjør nesten ingen skade på avstand, og hun er i lufta."],
+    ["echo", "Flyr over ham og straffer ham på avstand."],
+    ["widow", "Treffer ham lenge før han kommer nær nok."],
+    ["ana", "Antiheal og Sleep Dart stopper Death Blossom og lifesteal."],
+    ["brig", "Skjoldet og Whip Shot holder ham unna, og hun heler seg tilbake."],
+    ["shion", "Holder seg på mellomlang avstand med pistolene og er rask nok til å slippe unna hagla."]
+  ]},
+  { id: "shion", n: "Shion", r: "damage", s: "Flanker", tag: "Ny 2026", c: [
+    ["dva", "Defense Matrix spiser pistolskuddene og Execution-salven."],
+    ["vendetta", "Warding Stance blokkerer skuddene, og hun vinner duellen på kort hold."],
+    ["anran", "Fases gjennom angrepet og vinner nærkampen med brann."],
+    ["illari", "Pylonen og høy skade gjør at hun overlever flankene og slår tilbake."]
+  ]},
+  { id: "sierra", n: "Sierra", r: "damage", s: "Recon", tag: "Ny 2026", c: [
+    ["genji", "Deflect sender skuddene tilbake, og han kommer seg lett tett på."],
+    ["moira", "Strålen trenger ikke sikte, og hun tåler skuddene godt på nært hold."],
+    ["winston", "Dykker henne, og Tesla-kanonen treffer uansett."],
+    ["widow", "Vinner duellen på lang avstand."],
+    ["dva", "Defense Matrix spiser rifleskuddene."]
+  ]},
+  { id: "sojourn", n: "Sojourn", r: "damage", s: "Sharpshooter", c: [
+    ["winston", "Dykker henne, og Tesla-kanonen trenger ikke sikte."],
+    ["dva", "Defense Matrix spiser skuddene, så hun får ikke ladet Railgun."],
+    ["widow", "Bedre på lang avstand."],
+    ["tracer", "Rask og vanskelig å treffe med ladet Railgun."],
+    ["genji", "Deflect sender ladede skudd tilbake."]
+  ]},
+  { id: "soldier", n: "Soldier: 76", r: "damage", s: "Specialist", c: [
+    ["dva", "Defense Matrix spiser kulene og Helix-rakettene."],
+    ["winston", "Dykker ham, og bobla stenger ute skuddene."],
+    ["widow", "Utklasser ham på lang avstand."],
+    ["doomfist", "Kommer seg raskt inn og slår ham ut av posisjon."],
+    ["sigma", "Barrieren og Kinetic Grasp tar skuddene hans."]
+  ]},
+  { id: "symmetra", n: "Symmetra", r: "damage", s: "Specialist", c: [
+    ["pharah", "Holder seg utenfor strålen og bomber tårnene."],
+    ["echo", "Flyr over henne og tar ut tårnene."],
+    ["junkrat", "Granatene rydder tårnene raskt fra avstand."],
+    ["widow", "Skyter henne fra langt utenfor rekkevidde."],
+    ["winston", "Tesla-kanonen ødelegger alle tårnene på en gang."]
+  ]},
+  { id: "torb", n: "Torbjörn", r: "damage", s: "Specialist", c: [
+    ["junkrat", "Ødelegger tårnet fra rundt hjørner."],
+    ["pharah", "Skyter ned tårnet med rakettene fra avstand."],
+    ["echo", "Sticky Bombs fjerner tårnet raskt."],
+    ["widow", "Skyter både Torbjörn og tårnet fra langt unna."]
+  ]},
+  { id: "tracer", n: "Tracer", r: "damage", s: "Flanker", c: [
+    ["cassidy", "Magnetic Grenade og to skudd er nok til å ta henne."],
+    ["torb", "Tårnet treffer automatisk og avslører flankene hennes."],
+    ["moira", "Strålen trenger ikke sikte, så hun treffer selv når Tracer blinker rundt."],
+    ["brig", "Whip Shot og nærkamp straffer henne, og Brigitte heler seg selv."],
+    ["winston", "Tesla-kanonen trenger ikke sikte."],
+    ["shion", "Execution-salven og høy skade på kort hold vinner duellen mot Tracer."]
+  ]},
+  { id: "vendetta", n: "Vendetta", r: "damage", s: "Flanker", c: [
+    ["pharah", "Sverdet når ikke opp i lufta."],
+    ["orisa", "Tåler kombinasjonene hennes og knuffer henne bort med Javelin."],
+    ["ana", "Sleep Dart og antiheal stopper henne når hun går inn."],
+    ["mizuki", "Binding Chain saktner henne, og Kekkai Sanctuary beskytter laget."],
+    ["cassidy", "Magnetic Grenade straffer henne når Warding Stance er brukt."]
+  ]},
+  { id: "venture", n: "Venture", r: "damage", s: "Flanker", c: [
+    ["pharah", "Holder seg i lufta der Venture ikke når."],
+    ["echo", "Flyr utenfor rekkevidde."],
+    ["mei", "Saktner Venture og stenger flukten med veggen."],
+    ["dva", "Defense Matrix spiser skuddene, og hun tåler nærkampen godt."],
+    ["ana", "Sleep Dart når Venture kommer opp av bakken."]
+  ]},
+  { id: "widow", n: "Widowmaker", r: "damage", s: "Sharpshooter", c: [
+    ["winston", "Hopper rett opp på henne, og Tesla-kanonen trenger ikke sikte."],
+    ["dva", "Defense Matrix spiser skuddene, og hun booster opp til henne."],
+    ["ball", "Ruller opp på høye posisjoner og forstyrrer henne."],
+    ["genji", "Deflect sender skuddet tilbake, og han dykker henne lett."],
+    ["tracer", "For rask til at hun klarer å treffe på nært hold."]
+  ]},
+
+  // SUPPORT
+  { id: "ana", n: "Ana", r: "support", s: "Tactician", c: [
+    ["winston", "Dykker henne, og bobla stopper Sleep Dart og granaten."],
+    ["anran", "Kommer seg tett på og fases gjennom angrepene hennes."],
+    ["tracer", "Vanskelig å treffe med Sleep Dart."],
+    ["genji", "Deflect sender Sleep Dart tilbake."],
+    ["kiriko", "Suzu fjerner antiheal fra granaten og vekker lagkamerater fra Sleep."]
+  ]},
+  { id: "bap", n: "Baptiste", r: "support", s: "Tactician", c: [
+    ["genji", "Dykker ham og kan deflecte granatene."],
+    ["tracer", "Plager ham fra flankene."],
+    ["reaper", "Rå skade på kort hold."],
+    ["venture", "Kommer opp fra bakken og tar ham på kort hold."],
+    ["echo", "Angriper fra lufta, og Sticky Bombs gjør mye skade raskt."]
+  ]},
+  { id: "brig", n: "Brigitte", r: "support", s: "Survivor", c: [
+    ["pharah", "Holder seg i lufta der Brigitte ikke når."],
+    ["echo", "Flyr utenfor rekkevidde."],
+    ["junkrat", "Granatene går over skjoldet hennes."],
+    ["ramattra", "Pummel går gjennom skjoldet."]
+  ]},
+  { id: "doctrine", n: "Doctrine", r: "support", s: "Survivor", tag: "Ny 2026", c: [
+    ["tracer", "Rask flanker som presser ham før han får brukt Infuse."],
+    ["dva", "Defense Matrix spiser skuddene fra Eternal Scepter."],
+    ["illari", "Sterk healing og skade som vinner den lange fighten mot ham."],
+    ["ana", "Antiheal motvirker healingen og overhelsen han gir laget."]
+  ]},
+  { id: "illari", n: "Illari", r: "support", s: "Survivor", c: [
+    ["anran", "Kommer seg tett på og vinner duellen."],
+    ["genji", "Deflect sender skuddene tilbake."],
+    ["dva", "Defense Matrix spiser skuddene, og hun dykker henne lett."],
+    ["winston", "Dykker henne, og Tesla-kanonen ødelegger pylonen fort."]
+  ]},
+  { id: "jetpack", n: "Jetpack Cat", r: "support", s: "Tactician", tag: "Ny 2026", c: [
+    ["ashe", "Høy skade per skudd som treffer henne i lufta."],
+    ["soldier", "Jevn hitscan som følger henne når hun flyr."],
+    ["cassidy", "Tung hitscan som straffer henne i lufta."],
+    ["emre", "Burst-geværet tar henne raskt, og ulten lar ham fly etter henne."],
+    ["widow", "Et flygende mål er lett å treffe på lang avstand."]
+  ]},
+  { id: "juno", n: "Juno", r: "support", s: "Survivor", c: [
+    ["soldier", "Hitscan som treffer henne mens hun svever."],
+    ["cassidy", "Høy skade per skudd mot en svevende Juno."],
+    ["widow", "Lett mål når hun svever i lufta."],
+    ["dva", "Defense Matrix spiser Pulsar Torpedoes."]
+  ]},
+  { id: "kiriko", n: "Kiriko", r: "support", s: "Medic", c: [
+    ["winston", "Tesla-kanonen treffer henne selv når hun teleporterer rundt."],
+    ["vendetta", "Følger etter henne og vinner duellen på kort hold."],
+    ["genji", "Deflect sender kunaiene tilbake."],
+    ["widow", "Skyter henne før hun rekker å teleportere i sikkerhet."]
+  ]},
+  { id: "lw", n: "Lifeweaver", r: "support", s: "Medic", c: [
+    ["ball", "Ruller inn og plager ham, og han har lite å forsvare seg med."],
+    ["dva", "Defense Matrix spiser tornene, og hun dykker ham lett."],
+    ["pharah", "Angriper fra lufta på avstand, der tornene sliter."],
+    ["winston", "Dykker ham, og Tesla-kanonen trenger ikke sikte."],
+    ["tracer", "Rask flanker som tar ham før han får hjelp."]
+  ]},
+  { id: "lucio", n: "Lúcio", r: "support", s: "Tactician", c: [
+    ["moira", "Strålen følger ham uansett hvor fort han beveger seg."],
+    ["torb", "Tårnet treffer ham automatisk når han surfer rundt."],
+    ["cassidy", "Magnetic Grenade og høy skade tar ham raskt."],
+    ["mei", "Saktner ham ned og tar fra ham farten."],
+    ["hog", "Hooket river ham ned fra veggen."]
+  ]},
+  { id: "mercy", n: "Mercy", r: "support", s: "Medic", c: [
+    ["widow", "Lett mål når hun flyr mellom lagkameratene."],
+    ["cassidy", "Tung hitscan mot en sårbar flyger."],
+    ["soldier", "Jevn hitscan som følger henne i lufta."],
+    ["ashe", "Høy skade per skudd på avstand."],
+    ["winston", "Dykker henne, og Tesla-kanonen trenger ikke sikte."]
+  ]},
+  { id: "mizuki", n: "Mizuki", r: "support", s: "Survivor", tag: "Ny 2026", c: [
+    ["genji", "Deflect sender Spirit Glaive tilbake, og han dykker Mizuki lett."],
+    ["pharah", "Holder seg i lufta utenfor rekkevidden til Binding Chain."],
+    ["hanzo", "Ett pilskudd fra lang avstand straffer ham utenfor sanctuaryen."],
+    ["echo", "Flyr over ham og straffer fra lufta."]
+  ]},
+  { id: "moira", n: "Moira", r: "support", s: "Medic", c: [
+    ["ana", "Antiheal stopper både healingen og selvhelingen hennes."],
+    ["pharah", "Strålen når ikke opp i lufta på avstand."],
+    ["echo", "Holder seg utenfor rekkevidden til strålen."],
+    ["widow", "Treffer henne på lang avstand, der hun ikke kan svare."],
+    ["reaper", "Vinner duellen på kort hold med lifesteal."]
+  ]},
+  { id: "sombra", n: "Sombra", r: "support", s: "Tactician", tag: "Ny rolle S5", c: [
+    ["bap", "Immortality Field og sterk healing gjør at presset hennes ikke gir drap."],
+    ["cassidy", "Magnetic Grenade og tung skade tar henne før hun translokerer bort."],
+    ["moira", "Strålen trenger ikke sikte, og hun vinner duellen."],
+    ["winston", "Tesla-kanonen trenger ikke sikte og treffer henne selv i bevegelse."],
+    ["brig", "Tåler presset og slår henne bort med Whip Shot."]
+  ]},
+  { id: "wuyang", n: "Wuyang", r: "support", s: "Survivor", c: [
+    ["ball", "Ruller inn og forstyrrer ham i baklinjen."],
+    ["winston", "Dykker ham, og Tesla-kanonen trenger ikke sikte."],
+    ["dva", "Defense Matrix spiser vannkulene."],
+    ["widow", "Treffer ham fra lang avstand."]
+  ]},
+  { id: "zen", n: "Zenyatta", r: "support", s: "Tactician", c: [
+    ["tracer", "Han har ingen bevegelsesevne til å rømme fra henne."],
+    ["genji", "Deflect sender orbene tilbake, og han dykker ham lett."],
+    ["widow", "Treffer en treg Zenyatta på lang avstand."],
+    ["winston", "Dykker ham, og han har ingen måte å slippe unna på."],
+    ["dva", "Defense Matrix spiser orbene, og hun dykker ham."]
+  ]}
+];
+
+const BY_ID = Object.fromEntries(HEROES.map(h => [h.id, h]));
+// Hvem er en helt god mot? Regnes ut fra listene over.
+const GOOD_VS = {};
+HEROES.forEach(h => { GOOD_VS[h.id] = []; });
+HEROES.forEach(target => target.c.forEach(([cid, why]) => GOOD_VS[cid].push([target.id, why])));
+
+const ROLES = ["tank", "damage", "support"];
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const esc = s => s.replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+const isWide = () => window.matchMedia("(min-width: 920px)").matches;
+
+const EXAMPLE_TEAM = ["domina", "sierra", "emre", "mizuki", "juno"];
+let state = {
+  view: "helter",
+  hero: "sombra",
+  role: "all",
+  query: "",
+  enemyQuery: "",
+  enemies: EXAMPLE_TEAM.slice(),
+  isExample: true,
+  myRole: "all",
+  sheetOpen: false
+};
+
+const $ = id => document.getElementById(id);
+
+function heroButton(h, { pressed, enemy }) {
+  return `<button class="hero${enemy ? " enemy" : ""}" style="--rc:${ROLE_COLOR[h.r]}" data-id="${h.id}" aria-pressed="${pressed}">
+    <span class="name">${esc(h.n)}</span>
+    <span class="sub">${esc(h.s)}</span>
+    ${h.tag ? `<span class="tag">${esc(h.tag)}</span>` : ""}
+  </button>`;
+}
+
+function renderGroups(container, { query, role, pressedFn, enemy }) {
+  const q = norm(query);
+  let html = "";
+  let total = 0;
+  ROLES.forEach(r => {
+    if (role !== "all" && role !== r) return;
+    const list = HEROES.filter(h => h.r === r && (!q || norm(h.n).includes(q)));
+    if (!list.length) return;
+    total += list.length;
+    html += `<div class="group">
+      <div class="group-head">${ROLE_ICON[r]}<span>${ROLE_NAME[r]}</span><span class="count">${list.length}</span></div>
+      <div class="grid">${list.map(h => heroButton(h, { pressed: pressedFn(h), enemy })).join("")}</div>
+    </div>`;
+  });
+  container.innerHTML = total ? html : `<p class="empty">Ingen helter passer til «${esc(query)}». Prøv et annet navn.</p>`;
+}
+
+function renderFilters() {
+  const opts = [["all", "Alle"], ...ROLES.map(r => [r, ROLE_NAME[r]])];
+  $("role-filters").innerHTML = opts.map(([v, label]) =>
+    `<button class="filter" data-role="${v}" aria-pressed="${state.role === v}">${v !== "all" ? ROLE_ICON[v] : ""}${label}</button>`
+  ).join("");
+}
+
+function counterRow(id, why) {
+  const h = BY_ID[id];
+  return `<li class="row" style="--rc:${ROLE_COLOR[h.r]}">
+    <div class="who">${ROLE_ICON[h.r]}<button class="link" data-goto="${h.id}">${esc(h.n)}</button></div>
+    <p class="why">${esc(why)}</p>
+  </li>`;
+}
+
+function renderDetail() {
+  const h = BY_ID[state.hero];
+  const el = $("detail");
+  if (!h) { el.innerHTML = ""; return; }
+  const good = GOOD_VS[h.id];
+  el.style.setProperty("--rc", ROLE_COLOR[h.r]);
+  el.innerHTML = `
+    <div class="detail-head">
+      <button class="close" data-close>Lukk</button>
+      <h2 class="big-name">${esc(h.n)}</h2>
+      <div class="meta">
+        <span class="pill">${ROLE_ICON[h.r]}${ROLE_NAME[h.r]}</span>
+        <span class="pill">${esc(h.s)}</span>
+        ${h.tag ? `<span class="pill flag">${esc(h.tag)}</span>` : ""}
+      </div>
+    </div>
+    <div class="section-title">Blir countret av <span class="count">${h.c.length}</span></div>
+    <ul class="rows">${h.c.map(([id, why]) => counterRow(id, why)).join("")}</ul>
+    <div class="section-title">${esc(h.n)} er god mot <span class="count">${good.length}</span></div>
+    ${good.length
+      ? `<div class="chips">${good.map(([id]) => {
+          const t = BY_ID[id];
+          return `<button class="mini" data-goto="${t.id}">${ROLE_ICON[t.r]}${esc(t.n)}</button>`;
+        }).join("")}</div>
+        <p class="hint">Trykk på en helt for å se hvorfor.</p>`
+      : `<p class="hint">${esc(h.n)} står ikke som counter i noen av listene. Det betyr ikke at helten er svak, bare at den sjelden er det beste svaret mot noen bestemt.</p>`}
+  `;
+}
+
+function renderHeroesView() {
+  renderFilters();
+  renderGroups($("hero-groups"), {
+    query: state.query, role: state.role,
+    pressedFn: h => h.id === state.hero && (isWide() || state.sheetOpen),
+    enemy: false
+  });
+  renderDetail();
+  const open = state.view === "helter" && state.sheetOpen && !isWide();
+  $("detail").classList.toggle("open", open);
+  syncScrim();
+}
+
+function scorePicks() {
+  const enemies = state.enemies;
+  return HEROES
+    .filter(h => state.myRole === "all" || h.r === state.myRole)
+    .map(h => {
+      const hits = enemies.filter(e => BY_ID[e].c.some(([cid]) => cid === h.id));
+      const threats = enemies.filter(e => h.c.some(([cid]) => cid === e));
+      return { h, hits, threats, score: hits.length - threats.length * 0.5 };
+    })
+    .filter(p => p.hits.length > 0)
+    .sort((a, b) => b.score - a.score || b.hits.length - a.hits.length || a.h.n.localeCompare(b.h.n, "no"));
+}
+
+function renderEnemyBar() {
+  const slots = [];
+  for (let i = 0; i < 5; i++) {
+    const id = state.enemies[i];
+    if (id) {
+      const h = BY_ID[id];
+      slots.push(`<button class="slot filled" style="--rc:${ROLE_COLOR[h.r]}" data-remove="${id}" aria-label="Fjern ${esc(h.n)}">${esc(h.n)}</button>`);
+    } else {
+      slots.push(`<span class="slot">Tom</span>`);
+    }
+  }
+  $("enemy-bar").innerHTML = `${slots.join("")}
+    <span class="status">
+      ${state.isExample && state.enemies.length ? `<span class="example">Eksempellag</span>` : ""}
+      <span>${state.enemies.length} av 5</span>
+      <button class="btn" data-clear ${state.enemies.length ? "" : "disabled"}>Tøm</button>
+    </span>`;
+}
+
+function renderPicks() {
+  const el = $("picks");
+  el.style.removeProperty("--rc");
+  const roleOpts = [["all", "Alle"], ...ROLES.map(r => [r, ROLE_NAME[r]])];
+  const filters = `<div class="filters" role="group" aria-label="Min rolle">${roleOpts.map(([v, label]) =>
+    `<button class="filter" data-myrole="${v}" aria-pressed="${state.myRole === v}">${v !== "all" ? ROLE_ICON[v] : ""}${label}</button>`).join("")}</div>`;
+
+  if (!state.enemies.length) {
+    el.innerHTML = `<div class="section-title">Beste bytter</div>${filters}
+      <p class="hint">Trykk på heltene laget ditt møter, så dukker forslagene opp her.</p>`;
+    return;
+  }
+  const picks = scorePicks().slice(0, 10);
+  const n = state.enemies.length;
+  el.innerHTML = `<div class="section-title">Beste bytter <span class="count">mot ${n} ${n === 1 ? "fiende" : "fiender"}</span></div>
+    ${filters}
+    <p class="hint">Rangert etter hvor mange fiender helten counterer. Hver fiende som counterer helten trekker ned.</p>
+    <ul class="rows" style="margin-top:10px">${picks.length ? picks.map(p => {
+      const meter = state.enemies.map(e => `<i class="${p.hits.includes(e) ? "on" : ""}"></i>`).join("");
+      return `<li class="pick" style="--rc:${ROLE_COLOR[p.h.r]}">
+        <div class="pick-top">${ROLE_ICON[p.h.r]}<button class="link" data-goto="${p.h.id}">${esc(p.h.n)}</button>
+          <span class="score">${p.hits.length}<small>/${n}</small></span></div>
+        <div class="meter" aria-hidden="true">${meter}</div>
+        <p>Counterer ${p.hits.map(e => esc(BY_ID[e].n)).join(", ")}</p>
+        ${p.threats.length ? `<p class="warn">Pass deg for ${p.threats.map(e => esc(BY_ID[e].n)).join(", ")}</p>` : ""}
+      </li>`;
+    }).join("") : `<li class="hint">Ingen ${state.myRole === "all" ? "" : ROLE_NAME[state.myRole] + "-"}helter står som counter mot dette laget. Prøv en annen rolle.</li>`}</ul>`;
+}
+
+function renderEnemyView() {
+  renderEnemyBar();
+  renderGroups($("enemy-groups"), {
+    query: state.enemyQuery, role: "all",
+    pressedFn: h => state.enemies.includes(h.id),
+    enemy: true
+  });
+  renderPicks();
+}
+
+function syncScrim() {
+  const open = state.view === "helter" && state.sheetOpen && !isWide();
+  $("scrim").hidden = !open;
+  document.body.classList.toggle("locked", open);
+}
+
+function setView(v) {
+  state.view = v;
+  $("tab-helter").setAttribute("aria-selected", v === "helter");
+  $("tab-fiendelag").setAttribute("aria-selected", v === "fiendelag");
+  $("view-helter").hidden = v !== "helter";
+  $("view-fiendelag").hidden = v !== "fiendelag";
+  if (v === "helter") renderHeroesView(); else { state.sheetOpen = false; syncScrim(); renderEnemyView(); }
+  if (location.hash !== "#" + v) history.replaceState(null, "", "#" + v);
+}
+
+function openHero(id) {
+  state.hero = id;
+  state.sheetOpen = true;
+  if (state.view !== "helter") setView("helter"); else renderHeroesView();
+  const d = $("detail");
+  d.scrollTop = 0;
+  if (isWide()) d.scrollIntoView({ block: "nearest" });
+}
+
+// Hendelser
+$("tab-helter").addEventListener("click", () => setView("helter"));
+$("tab-fiendelag").addEventListener("click", () => setView("fiendelag"));
+$("search").addEventListener("input", e => { state.query = e.target.value; renderHeroesView(); });
+$("search-enemy").addEventListener("input", e => { state.enemyQuery = e.target.value; renderEnemyView(); });
+$("scrim").addEventListener("click", () => { state.sheetOpen = false; renderHeroesView(); });
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.dataset.role) { state.role = t.dataset.role; renderHeroesView(); return; }
+  if (t.dataset.myrole) { state.myRole = t.dataset.myrole; renderPicks(); return; }
+  if (t.dataset.close !== undefined) { state.sheetOpen = false; renderHeroesView(); return; }
+  if (t.dataset.goto) { openHero(t.dataset.goto); return; }
+  if (t.dataset.clear !== undefined) { state.enemies = []; state.isExample = false; renderEnemyView(); return; }
+  if (t.dataset.remove) {
+    state.enemies = state.enemies.filter(x => x !== t.dataset.remove);
+    state.isExample = false; renderEnemyView(); return;
+  }
+  if (t.classList.contains("hero")) {
+    const id = t.dataset.id;
+    if (t.classList.contains("enemy")) {
+      if (state.isExample) { state.enemies = []; state.isExample = false; }
+      if (state.enemies.includes(id)) state.enemies = state.enemies.filter(x => x !== id);
+      else if (state.enemies.length < 5) state.enemies.push(id);
+      renderEnemyView();
+    } else {
+      openHero(id);
+    }
+  }
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && state.sheetOpen) { state.sheetOpen = false; renderHeroesView(); }
+});
+window.addEventListener("hashchange", () => {
+  const v = location.hash.slice(1);
+  if ((v === "helter" || v === "fiendelag") && v !== state.view) setView(v);
+});
+window.matchMedia("(min-width: 920px)").addEventListener("change", () => { if (state.view === "helter") renderHeroesView(); });
+
+function start(saved) {
+  if (saved && typeof saved === "object") {
+    ["hero", "role", "myRole"].forEach(k => { if (saved[k]) state[k] = saved[k]; });
+    if (Array.isArray(saved.enemies)) { state.enemies = saved.enemies.filter(id => BY_ID[id]).slice(0, 5); state.isExample = !!saved.isExample; }
+  }
+  if (!BY_ID[state.hero]) state.hero = "sombra";
+  const v = location.hash.slice(1);
+  setView(v === "fiendelag" ? "fiendelag" : "helter");
+}
+window.claude?.hot?.snapshot?.(() => ({ hero: state.hero, role: state.role, myRole: state.myRole, enemies: state.enemies, isExample: state.isExample }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
