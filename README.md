@@ -18,6 +18,23 @@ npx expo start
 Skann QR-koden med **Expo Go**-appen på telefonen (iPhone eller Android), så åpnes appen.
 Du kan også kjøre `npx expo start --web` for å teste i nettleseren.
 
+## Installer på iPhone (gratis)
+
+Appen kan installeres som en web-app med eget ikon på Hjem-skjermen. Den åpnes i fullskjerm uten Safari-menyer.
+
+**Engangsoppsett på GitHub:**
+1. Repoet må være offentlig (Settings → General → Danger Zone → Change visibility), fordi GitHub Pages er gratis bare for offentlige repoer.
+2. Settings → Pages → Source: **GitHub Actions**.
+3. Når koden ligger på `main`, bygges og publiseres appen automatisk (`.github/workflows/pages.yml`) på
+   `https://<brukernavn>.github.io/lek/`.
+
+**På iPhonen:**
+1. Åpne adressen over i **Safari**.
+2. Trykk på Del-knappen (firkant med pil opp).
+3. Velg **Legg til på Hjem-skjerm**, og trykk **Legg til**.
+
+Bygg web-versjonen lokalt med `npm run build:web` (havner i `dist/`).
+
 ## Endre data
 
 All data ligger i to filer, og er lett å justere når spillet blir balansert om:
