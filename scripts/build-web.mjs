@@ -15,7 +15,7 @@ const jsDir = join(out, '_expo/static/js/web');
 const bundle = readdirSync(jsDir).find((f) => f.endsWith('.js'));
 if (!bundle) throw new Error('Fant ikke JS-bundle');
 
-const html = readFileSync('web/index.html', 'utf8').replace('__BUNDLE__', `_expo/static/js/web/${bundle}`);
+const html = readFileSync('web/index.html', 'utf8').replaceAll('__BUNDLE__', `_expo/static/js/web/${bundle}`);
 writeFileSync(join(out, 'index.html'), html);
 for (const f of ['manifest.json', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png']) {
   copyFileSync(join('web', f), join(out, f));
