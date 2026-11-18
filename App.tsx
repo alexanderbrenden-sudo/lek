@@ -6,17 +6,26 @@ import { HeroListScreen } from './src/screens/HeroListScreen';
 import { HeroDetailScreen } from './src/screens/HeroDetailScreen';
 import { MapListScreen } from './src/screens/MapListScreen';
 import { MapDetailScreen } from './src/screens/MapDetailScreen';
+import { EMPTY_TEAM, TeamBuilderScreen, TeamState } from './src/screens/TeamBuilderScreen';
 import { HERO_BY_ID } from './src/data/heroes';
 import { MAPS } from './src/data/maps';
 import { colors } from './src/theme';
 
-type Tab = 'heroes' | 'maps';
+type Tab = 'heroes' | 'team' | 'maps';
+
+const TABS: { key: Tab; label: string; icon: string; title: string }[] = [
+  { key: 'heroes', label: 'Helter', icon: '🛡️', title: 'Helter' },
+  { key: 'team', label: 'Lagbygger', icon: '⚔️', title: 'Lagbygger' },
+  { key: 'maps', label: 'Kart', icon: '🗺️', title: 'Kart' },
+];
 type Route = { name: 'hero'; id: string } | { name: 'map'; id: string };
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('heroes');
   // Én navigasjonsstabel per fane.
-  const [stacks, setStacks] = useState<Record<Tab, Route[]>>({ heroes: [], maps: [] });
+  const [stacks, setStacks] = useState<Record<Tab, Route[]>>({ heroes: [], team: [], maps: [] });
+  // Lagbygger-valgene ligger her så de ikke forsvinner når man åpner en helt.
+  const [team, setTeamState] = useState<TeamState>(EMPTY_TEAM);
   const stack = stacks[tab];
   const current = stack[stack.length - 1];
 
@@ -35,7 +44,7 @@ export default function App() {
   const openHero = (id: string) => push({ name: 'hero', id });
   const openMap = (id: string) => push({ name: 'map', id });
 
-  let title = tab === 'heroes' ? 'Helter' : 'Kart';
+  let title = TABS.find((t) => t.key === tab)!.title;
   if (current?.name === 'hero') title = HERO_BY_ID[current.id]?.name ?? title;
   if (current?.name === 'map') title = MAPS.find((m) => m.id === current.id)?.name ?? title;
 
@@ -46,6 +55,8 @@ export default function App() {
     screen = <MapDetailScreen key={stack.length} mapId={current.id} onOpenHero={openHero} />;
   } else if (tab === 'heroes') {
     screen = <HeroListScreen onOpen={openHero} />;
+  } else if (tab === 'team') {
+    screen = <TeamBuilderScreen team={team} setTeam={setTeamState} onOpenHero={openHero} />;
   } else {
     screen = <MapListScreen onOpen={openMap} />;
   }
@@ -60,7 +71,7 @@ export default function App() {
               <Text style={styles.backText}>‹ Tilbake</Text>
             </Pressable>
           ) : (
-            <Text style={styles.appName}>OW Counters</Text>
+            <Text style={styles.appName}>{tab === 'team' ? 'Lagbygger' : 'OW Counters'}</Text>
           )}
           {current ? (
             <Text style={styles.topTitle} numberOfLines={1}>{title}</Text>
@@ -70,7 +81,7 @@ export default function App() {
         <View style={styles.body}>{screen}</View>
 
         <View style={styles.tabBar}>
-          {(['heroes', 'maps'] as Tab[]).map((t) => {
+          {TABS.map(({ key: t, label, icon }) => {
             const active = t === tab;
             return (
               <Pressable
@@ -82,10 +93,8 @@ export default function App() {
                   setTab(t);
                 }}
               >
-                <Text style={[styles.tabIcon, active && styles.tabActive]}>{t === 'heroes' ? '🛡️' : '🗺️'}</Text>
-                <Text style={[styles.tabText, active && styles.tabActive]}>
-                  {t === 'heroes' ? 'Helter' : 'Kart'}
-                </Text>
+                <Text style={[styles.tabIcon, active && styles.tabActive]}>{icon}</Text>
+                <Text style={[styles.tabText, active && styles.tabActive]}>{label}</Text>
               </Pressable>
             );
           })}

@@ -8,6 +8,8 @@ export type Hero = {
   counteredBy: string[];
   /** Kort tips om hvordan man spiller mot helten. */
   tip: string;
+  /** Valgfri URL til et eget portrett som legges over det genererte. */
+  image?: string;
 };
 
 export const ROLE_LABEL: Record<Role, string> = {

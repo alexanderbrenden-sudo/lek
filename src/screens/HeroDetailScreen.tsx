@@ -4,6 +4,7 @@ import { mapsForHero } from '../data/maps';
 import { HeroAvatar, HeroChip } from '../components/HeroChip';
 import { ChipRow, Section } from '../components/Section';
 import { colors } from '../theme';
+import { HeroBanner } from '../components/Art';
 
 type Props = {
   heroId: string;
@@ -20,9 +21,12 @@ export function HeroDetailScreen({ heroId, onOpenHero, onOpenMap }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <HeroBanner hero={hero} />
       <View style={styles.header}>
-        <HeroAvatar hero={hero} size={72} />
-        <View>
+        <View style={styles.bigAvatar}>
+          <HeroAvatar hero={hero} size={72} />
+        </View>
+        <View style={styles.nameBox}>
           <Text style={styles.name}>{hero.name}</Text>
           <Text style={[styles.role, { color: ROLE_COLOR[hero.role] }]}>{ROLE_LABEL[hero.role]}</Text>
         </View>
@@ -81,7 +85,9 @@ export function HeroDetailScreen({ heroId, onOpenHero, onOpenMap }: Props) {
 
 const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: -36, marginLeft: 12, marginBottom: 20 },
+  bigAvatar: { backgroundColor: colors.bg, borderRadius: 40, padding: 3 },
+  nameBox: { marginTop: 30 },
   name: { color: colors.text, fontSize: 28, fontWeight: '800' },
   role: { fontSize: 15, fontWeight: '700', marginTop: 2 },
   tipBox: {
