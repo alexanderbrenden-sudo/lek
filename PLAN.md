@@ -2,7 +2,8 @@
 
 Arbeidsnavn: **Duo** (kan endres). Matching på lokasjon og competitive rank per rolle.
 
-Status: **utkast, venter på godkjenning.** Ingen kode er skrevet ennå.
+Status: **utkast v2, venter på godkjenning.** Ingen kode er skrevet ennå.
+v2: eget repo, kjønn som utvidbar enum med flervalg, «hvilken som helst rolle» som standard, Unranked, BattleTag låst i databasen.
 
 ---
 
@@ -22,7 +23,7 @@ Status: **utkast, venter på godkjenning.** Ingen kode er skrevet ennå.
 
 **Jeg anbefaler å beholde Supabase.** Det viktigste kravet er at begge må passe *hverandres* preferanser, pluss avstand. Det er én SQL-spørring med joins og `ST_DWithin` i Postgres. I Firebase/Firestore måtte man filtrert det meste i klienten eller i Cloud Functions, og det er både tregere og lekker data. Med Row Level Security (RLS) kan ingen klient lese andres rådata, bare det databasefunksjonene gir ut.
 
-**Plassering i repoet:** Repoet inneholder allerede OW Counters (og GitHub Pages-publisering fra rot). Jeg foreslår at datingappen bor i en egen mappe, `duo/`, så den ikke påvirker den eksisterende appen. Et eget repo er ryddigere på sikt. Si fra hvis du heller vil det.
+**Plassering:** Appen får et **eget repo** (forslag: `duo`). Appen ligger i roten av det repoet. OW Counters-repoet (`lek`) røres ikke. Denne planen flyttes dit i steg 0.
 
 ---
 
@@ -45,7 +46,7 @@ Top 500 = 46
 | Top 500 | 46 |
 
 Tilbake fra tall: `nivå = floor((v-1)/5)`, `divisjon = 5 - ((v-1) % 5)`.
-Ingen rank i en rolle (unranked) = ingen rad for den rollen. Databasen sjekker `rank BETWEEN 1 AND 46`.
+**Unranked** er et eget valg, ikke et tall i skalaen. Det lagres som `NULL`, så Unranked aldri havner «under Bronze» i et spenn. Hver bruker har alltid fire rader i `role_ranks`, én per rolle, og alle starter som Unranked. Databasen sjekker `rank IS NULL OR rank BETWEEN 1 AND 46`.
 All konvertering skjer i én fil (`src/lib/rank.ts`) med enhetstester for alle 46 verdier.
 
 ---
@@ -54,7 +55,7 @@ All konvertering skjer i én fil (`src/lib/rank.ts`) med enhetstester for alle 4
 
 ### Typer
 - `ow_role`: `tank`, `damage`, `support`, `open_queue`
-- `gender`: `man`, `woman`, `nonbinary` (bekreft listen, se spørsmål til slutt)
+- `gender`: `man`, `woman`, `nonbinary` (vises som mann, kvinne, ikke-binær). Typen kan utvides senere med en migrasjon (`ALTER TYPE gender ADD VALUE '...'`) uten å røre eksisterende data. Visningsteksten ligger i appen, ikke i databasen.
 
 ### Tabeller
 
@@ -66,25 +67,33 @@ All konvertering skjer i én fil (`src/lib/rank.ts`) med enhetstester for alle 4
 | `birthdate` | date | trigger avviser under 18 år |
 | `gender` | gender | |
 | `bio` | text | maks 500 tegn |
-| `battletag` | text, valgfri | vises **kun** til matcher |
 | `location` | geography(Point, 4326) | grovet ned til ca. 1 km før lagring |
 | `location_updated_at` | timestamptz | |
 | `onboarded` | bool | må være true for å vises for andre |
 | `last_active_at` | timestamptz | for sortering, og for å skjule inaktive |
 | `created_at` | timestamptz | |
 
-**`role_ranks`**: rank per rolle
-| `user_id` | `role` ow_role | `rank` smallint 1–46 | PK (`user_id`, `role`) |
+**`role_ranks`**: rank per rolle, alltid fire rader per bruker
+| `user_id` | `role` ow_role | `rank` smallint, 1–46 eller NULL (= Unranked) | PK (`user_id`, `role`) |
+
+**`private_details`**: felt som bare eieren og matcher får se
+| Kolonne | Type | Merknad |
+|---|---|---|
+| `user_id` | uuid PK | |
+| `battletag` | text, valgfri | format `Navn#1234` |
+
+BattleTag ligger i en egen tabell med vilje, se «BattleTag kun etter match» under.
 
 **`preferences`**: én rad per bruker
 | Kolonne | Type | Merknad |
 |---|---|---|
 | `user_id` | uuid PK | |
-| `role` | ow_role | hvilken rolle rankspennet gjelder |
-| `min_rank`, `max_rank` | smallint | `min_rank <= max_rank` |
+| `role` | ow_role, **NULL = hvilken som helst rolle** (standard) | hvilken rolle rankspennet gjelder |
+| `min_rank`, `max_rank` | smallint 1–46 | `min_rank <= max_rank`, standard 1–46 (alle) |
+| `include_unranked` | bool | «Vis også Unranked». Standard: på ved hvilken som helst rolle, av ved bestemt rolle |
 | `max_distance_km` | smallint | 1–500 |
 | `min_age`, `max_age` | smallint | `18 <= min_age <= max_age <= 99` |
-| `genders` | gender[] | hvilke kjønn jeg vil se, minst ett |
+| `show_genders` | gender[] | «Vis meg», flervalg, minst ett (`cardinality >= 1`) |
 
 **`photos`**: `id`, `user_id`, `storage_path`, `position` (0–5). Filene ligger i en privat Storage-bøtte og vises via signerte URL-er.
 
@@ -103,7 +112,7 @@ All konvertering skjer i én fil (`src/lib/rank.ts`) med enhetstester for alle 4
 - `swipes (swipee_id)`, `messages (match_id, created_at)`
 
 ### Sikkerhet (RLS)
-- Man kan lese og endre **sin egen** profil, ranks, preferanser og bilder. Andres rader kan man ikke lese direkte.
+- Man kan lese og endre **sin egen** profil, ranks, preferanser, bilder og `private_details`. Andres rader kan man ikke lese direkte.
 - Andres profiler hentes bare gjennom databasefunksjoner som returnerer trygge felt: navn, **alder** (ikke fødselsdato), **avrundet avstand** (ikke koordinater), ranks, bio og bilder.
 - `matches` og `messages` kan bare leses av de to i matchen. Man kan bare sende melding i en aktiv match, og bare som seg selv.
 - Swipes og matcher opprettes bare via funksjoner, ikke med direkte insert.
@@ -115,8 +124,15 @@ All konvertering skjer i én fil (`src/lib/rank.ts`) med enhetstester for alle 4
 2. Jeg har ikke swipet på dem. Ingen blokkering i noen retning. Ingen eksisterende match.
 3. **Avstand:** `ST_DWithin(meg, dem, least(min_maks_km, deres_maks_km) * 1000)`. Avstanden må passe begge.
 4. **Alder:** deres alder er innenfor mitt spenn, og min alder er innenfor deres.
-5. **Kjønn:** deres kjønn er i mine `genders`, og mitt kjønn er i deres.
-6. **Rank:** deres rank i *min valgte rolle* er innenfor mitt spenn, og min rank i *deres valgte rolle* er innenfor deres spenn. Mangler rank i den rollen, er man ikke med.
+5. **Kjønn:** deres kjønn er i mine `show_genders`, og mitt kjønn er i deres.
+6. **Rank:** de passer mitt rankfilter, og jeg passer deres (regelen under brukes begge veier).
+
+**Rankregelen** (én hjelpefunksjon, `passes_rank_filter(preferanser, person)`):
+- En rolle er *innenfor spennet* hvis ranken er mellom `min_rank` og `max_rank`, eller hvis rollen er Unranked og `include_unranked` er på.
+- **Hvilken som helst rolle** (`role` er NULL, standard): personen passer hvis **minst én** av de fire rollene er innenfor spennet.
+- **Bestemt rolle**: bare den rollen teller. Har personen ikke rank i den rollen, skjules profilen. Det eneste unntaket er hvis `include_unranked` er på. Derfor er bryteren av som standard når man velger en bestemt rolle.
+
+Eksempel: Mitt filter er Gold 3–Diamond 1, hvilken som helst rolle. Kari er Platinum 2 Support og Master Tank. Hun passer fordi Support er innenfor. Velger jeg i stedet bare Tank, passer hun ikke.
 
 Sortering: de som allerede har likt meg litt opp, ellers nærmest først. Avstanden vises som «< 5 km» eller avrundet til nærmeste 5 km, så man ikke kan finne noens posisjon ved å flytte seg og sammenligne avstander.
 
@@ -126,7 +142,15 @@ Sortering: de som allerede har likt meg litt opp, ellers nærmest først. Avstan
 
 **`get_matches()`**: matcher med den andres profil, siste melding og antall uleste.
 
-Tolkning av rolle-preferansen: «Jeg vil se folk som er Gold 3–Diamond 1 **på Support**». Den andre må ha en Support-rank i spennet. Senere kan man legge til «hvilken som helst rolle», hvis du vil.
+**`get_match_profile(match_id)`**: full profil for den andre i en matchen, inkludert BattleTag.
+
+### BattleTag kun etter match
+Håndheves i databasen, ikke bare i appen:
+- BattleTag ligger i `private_details`, som har én RLS-regel: `user_id = auth.uid()`. Ingen andre kan lese den, uansett hvordan de spør.
+- `get_candidates` returnerer en fast liste med kolonner, og BattleTag er ikke blant dem.
+- Bare `get_match_profile` leser `private_details` for en annen bruker. Funksjonen sjekker først at det finnes en **aktiv** match (`unmatched_at IS NULL`) mellom innlogget bruker og den andre. Ellers gir den feil. Etter unmatch blir BattleTag borte igjen.
+- `private_details` er ikke med i Realtime, så den kan ikke lekke via sanntidsstrømmen.
+- pgTAP-tester sjekker alt dette: ingen treff ved direkte lesing, ingen BattleTag fra `get_candidates`, feil fra `get_match_profile` uten match og etter unmatch, og riktig BattleTag med aktiv match.
 
 ### 18+
 - I appen: fødselsdato velges først. Under 18 år stopper registreringen.
@@ -145,8 +169,9 @@ Innlogging
 Onboarding (én gang, steg for steg med fremdriftslinje)
   1 Om deg          – fødselsdato (18+-sperre), kjønn, visningsnavn
   2 Bilder          – 1–6 bilder
-  3 Ranks           – rank per rolle (Tank, Damage, Support, Open Queue), alle valgfrie, minst én
-  4 Hvem du ser etter – rolle, rankspenn, alder, kjønn, maks avstand
+  3 Ranks           – rank per rolle (Tank, Damage, Support, Open Queue), hver kan settes til Unranked
+  4 Hvem du ser etter – rolle («Hvilken som helst» eller én bestemt), rankspenn, «Vis også Unranked»,
+                      alder, «Vis meg» (flervalg: mann, kvinne, ikke-binær), maks avstand
   5 Lokasjon        – be om tillatelse, forklar at bare grov posisjon lagres
   6 Bio + BattleTag (valgfritt)
 
@@ -172,7 +197,8 @@ Rank-merkene tegner jeg selv (farge per nivå + tall). Blizzards rank-ikoner og 
 ## 5. Mappestruktur
 
 ```
-duo/
+duo/                            # eget repo
+  PLAN.md
   app/                          # Expo Router (skjermer = filer)
     _layout.tsx                 # Supabase-session, sender videre til riktig gruppe
     (auth)/
@@ -209,7 +235,7 @@ duo/
     config.toml
     migrations/
       0001_extensions_and_types.sql
-      0002_profiles_ranks_preferences.sql
+      0002_profiles_ranks_preferences.sql   # inkl. private_details
       0003_photos_storage.sql
       0004_candidates.sql
       0005_swipes_matches.sql
@@ -219,6 +245,8 @@ duo/
     tests/                      # pgTAP-tester
       candidates_test.sql
       swipe_match_test.sql
+      rank_filter_test.sql      # hvilken som helst rolle, bestemt rolle, Unranked
+      battletag_test.sql        # BattleTag aldri ut før match
       rls_test.sql
   __tests__/rank.test.ts
   app.json  package.json  tsconfig.json  .env.example
@@ -232,22 +260,22 @@ Hvert steg avsluttes med en commit og noe konkret du kan sjekke.
 
 | # | Steg | Slik tester du |
 |---|---|---|
-| 0 | Opprett `duo/` med Expo Router og TypeScript, tom fane-app | `npx expo start`, åpne i Expo Go og se tre tomme faner |
-| 1 | `rank.ts` + enhetstester | `npm test`: Bronze 5 = 1, Champion 1 = 45, Top 500 = 46, alle verdier frem og tilbake |
-| 2 | Migrasjon 0001–0002: typer, profiles, role_ranks, preferences, RLS, 18+-trigger | `supabase db reset` og `supabase test db`. Under 18 år avvises, andres rader kan ikke leses |
+| 0 | I det nye repoet: Expo Router, TypeScript og flytt `PLAN.md` dit. Tom app med tre faner | `npx expo start`, åpne i Expo Go og se tre tomme faner |
+| 1 | `rank.ts` + enhetstester | `npm test`: Bronze 5 = 1, Champion 1 = 45, Top 500 = 46, Unranked = null, alle verdier frem og tilbake |
+| 2 | Migrasjon 0001–0002: typer, profiles, role_ranks, preferences, private_details, RLS, 18+-trigger | `supabase db reset` og `supabase test db`. Under 18 år avvises, andres rader og BattleTag kan ikke leses |
 | 3 | Supabase-klient + innlogging med e-postkode | Logg inn på telefonen, lukk appen, åpne igjen og vær fortsatt innlogget |
 | 4 | Onboarding 1: om deg (med 18+-sperre) | Prøv en fødselsdato som gir 17 år og bli stoppet. Se raden i Supabase Studio |
-| 5 | Onboarding 3: RankPicker per rolle | Lagre Gold 3 Support, se `13` i `role_ranks` |
-| 6 | Onboarding 4: preferanser (rolle, rankspenn, alder, kjønn, km) | Ugyldig spenn (min > maks) kan ikke lagres |
+| 5 | Onboarding 3: RankPicker per rolle med Unranked | Lagre Gold 3 Support, se `13` i `role_ranks`. Sett Tank til Unranked, se `NULL` |
+| 6 | Onboarding 4: preferanser (rolle eller hvilken som helst, rankspenn, Unranked, alder, «Vis meg», km) | Ugyldig spenn (min > maks) og tom «Vis meg» kan ikke lagres |
 | 7 | Onboarding 5: lokasjon | Koordinatene i Studio er grovet ned. Avslått tillatelse gir en forklaring, ikke en krasj |
 | 8 | Migrasjon 0003 + onboarding 2: bilder | Last opp 2 bilder, se dem i bøtta, og sjekk at de ikke kan åpnes uten innlogging |
-| 9 | Migrasjon 0004: `get_candidates` + seed + pgTAP-tester for gjensidighet | `supabase test db`: A ser B bare når begge passer hverandre på rank, rolle, alder, kjønn og avstand |
+| 9 | Migrasjon 0004: `get_candidates` + seed + pgTAP-tester for gjensidighet | `supabase test db`: A ser B bare når begge passer hverandre på rank, rolle, alder, kjønn og avstand. Egne tester for hvilken som helst rolle, bestemt rolle og Unranked |
 | 10 | Oppdag-skjerm med knapper (ingen sveip ennå) | Logg inn som en seed-bruker og se riktige kandidater med alder, avstand og ranks |
 | 11 | Migrasjon 0005: `swipe` + match | Bruker A liker B, så liker B A, og det oppstår en match. Test med to kontoer (telefon + nettleser) |
 | 12 | Sveipegester + «Det er en match!» | Sveip til høyre/venstre på telefonen |
-| 13 | Matcher-fanen | Ny match dukker opp i lista |
+| 13 | Matcher-fanen + `get_match_profile` med BattleTag | Ny match dukker opp i lista og viser BattleTag. pgTAP: BattleTag gir feil uten match |
 | 14 | Migrasjon 0006: meldinger + chat med Realtime | Send fra telefonen, og meldingen dukker opp i nettleseren uten oppdatering. Kan ikke sende uten match |
-| 15 | Migrasjon 0007: unmatch, blokker, rapporter | Blokkert bruker forsvinner fra Oppdag og Matcher i begge retninger |
+| 15 | Migrasjon 0007: unmatch, blokker, rapporter | Blokkert bruker forsvinner fra Oppdag og Matcher i begge retninger. Etter unmatch er BattleTag borte |
 | 16 | Rediger profil, preferanser, innstillinger, slett konto | Slettet konto forsvinner helt (profil, bilder, meldinger) |
 | 17 | Polering: tomme tilstander, feilmeldinger, lastevisning, ikon | Gå gjennom hele flyten med en ny konto |
 | 18 | (Valgfritt) Push-varsler for match og melding | Krever development build via EAS (fungerer ikke i Expo Go) |
@@ -259,8 +287,9 @@ Steg 0–9 kan gjøres uten swipe-UI. Steg 9 er det viktigste å få riktig, og 
 
 ## 7. Dette må du sette opp selv
 
+0. **Nytt GitHub-repo:** Lag et tomt repo, f.eks. `duo` (privat er greit), og si fra når det finnes. Da kobler jeg det til økten og starter der. Jeg kan ikke opprette repoer selv.
 1. **Supabase-prosjekt** (gratisnivå holder): supabase.com → New project, region **Stockholm (eu-north-1)**.
-   - Kopier **Project URL** og **anon/publishable key** til `duo/.env` som `EXPO_PUBLIC_SUPABASE_URL` og `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Anon-nøkkelen er trygg i appen fordi RLS beskytter dataene. **Service role-nøkkelen skal aldri inn i appen eller på GitHub.**
+   - Kopier **Project URL** og **anon/publishable key** til `.env` i det nye repoet som `EXPO_PUBLIC_SUPABASE_URL` og `EXPO_PUBLIC_SUPABASE_ANON_KEY`. Anon-nøkkelen er trygg i appen fordi RLS beskytter dataene. **Service role-nøkkelen skal aldri inn i appen eller på GitHub.**
 2. **Innlogging med e-postkode:** Authentication → Email: slå på, og endre e-postmalen så den viser `{{ .Token }}` (koden) i stedet for bare en lenke.
    Supabase sin innebygde e-post sender bare noen få e-poster i timen. Før andre skal teste, sett opp egen SMTP (f.eks. Resend, gratisnivå) under Authentication → SMTP.
 3. **Supabase CLI**, og **Docker Desktop** hvis du vil kjøre databasen lokalt (anbefalt for testing): `npm i -g supabase`, `supabase login`, `supabase link`. Migrasjonene sendes til skyen med `supabase db push`.
@@ -272,11 +301,11 @@ Steg 0–9 kan gjøres uten swipe-UI. Steg 9 er det viktigste å få riktig, og 
 
 ---
 
-## 8. Spørsmål før jeg starter
+## 8. Avgjort
 
-1. Er `duo/` som undermappe i dette repoet greit, eller vil du ha et eget repo?
-2. Kjønnsvalg: holder `mann / kvinne / ikke-binær`?
-3. Skal en profil uten rank i den valgte rollen skjules (slik planen sier nå), eller vises med «unranked»?
-4. Skal BattleTag vises først etter match (slik planen sier nå)?
+1. Eget repo, ikke undermappe i `lek`.
+2. Kjønn: mann, kvinne, ikke-binær. Lagres som en enum som kan utvides. «Vis meg» er flervalg.
+3. Standard rollefilter er «hvilken som helst rolle»: personen passer hvis minst én rolle er innenfor spennet. Et rollespesifikt filter er valgfritt, og da skjules profiler uten rank i den rollen. Unranked er et eget valg.
+4. BattleTag vises bare etter match. Det håndheves i RLS og RPC.
 
-Si «godkjent» (eventuelt med endringer), så begynner jeg på steg 0.
+Si «godkjent» (eventuelt med endringer) og gi meg navnet på det nye repoet, så begynner jeg på steg 0.
